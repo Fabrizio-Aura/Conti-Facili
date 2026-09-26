@@ -358,7 +358,7 @@ let periodoCorrente = "oggi";
         render();
         alert("Backup ripristinato correttamente");
         } catch (e) {
-        alert("Errore: il file di backup non è valido");
+        alert("Errore ripristino: " + e.message);
         }
       };
     reader.readAsText(file);
