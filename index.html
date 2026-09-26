@@ -383,6 +383,7 @@ select.onchange = () => {
   document.getElementById("nuovaCategoria").style.display = select.value === "Altro" ? "block" : "none";
   const eliminaBtn = document.getElementById("eliminaCategoriaBtn");
   eliminaBtn.style.display = categoriePersonalizzate.includes(select.value) ? "block" : "none";
+  console.log("Categoria:", select.value, "Personalizzate:", categoriePersonalizzate);
   eliminaBtn.onclick = () => eliminaCategoriaPersonalizzata(select.value);
   };
   
