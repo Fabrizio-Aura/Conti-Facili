@@ -281,6 +281,7 @@ h2 {
   <label>Categoria</label>
   <select id="categoria"></select>
   <input id="nuovaCategoria" type="text" placeholder="Scrivi una nuova categoria" style="display:none;">
+  <button type="button" id="eliminaCategoriaBtn" style="display:none;">Elimina categoria</button>
 
   <label>Nota (facoltativa)</label>
   <input id="nota" type="text" placeholder="Es. benzina, pranzo, cliente...">
@@ -352,6 +353,11 @@ const categorieUscita = [
   function salvaCategoriePersonalizzate() {
     localStorage.setItem("contiFaciliCategorie", JSON.stringify(categoriePersonalizzate));
     }
+  function eliminaCategoriaPersonalizzata(nome) {
+    categoriePersonalizzate = categoriePersonalizzate.filter(c => c !== nome);
+    salvaCategoriePersonalizzate();
+    apriForm(tipoCorrente);
+    }
 
 function euro(n) {
   return new Intl.NumberFormat("it-IT", {
@@ -373,7 +379,13 @@ function apriForm(tipo) {
 
   select.innerHTML = [...categorie, ...categoriePersonalizzate].map(c => `<option>${c}</option>`).join("");
   select.insertAdjacentHTML("afterbegin", '<option value="" selected disabled>Scegli categoria</option>');
-select.onchange = () => document.getElementById("nuovaCategoria").style.display = select.value === "Altro" ? "block" : "none";
+select.onchange = () => {
+  document.getElementById("nuovaCategoria").style.display = select.value === "Altro" ? "block" : "none";
+  const eliminaBtn = document.getElementById("eliminaCategoriaBtn");
+  eliminaBtn.style.display = categoriePersonalizzate.includes(select.value) ? "block" : "none";
+  eliminaBtn.onclick = () => eliminaCategoriaPersonalizzata(select.value);
+  };
+  
   document.getElementById("nuovaCategoria").value = "";
   document.getElementById("importo").value = "";
   document.getElementById("nota").value = "";
