@@ -367,6 +367,7 @@ function apriForm(tipo) {
   const categorie = tipo === "entrata" ? categorieEntrata : categorieUscita;
 
   select.innerHTML = categorie.map(c => `<option>${c}</option>`).join("");
+  select.insertAdjacentHTML("afterbegin", '<option value="" selected disabled>Scegli categoria</option>');
 select.onchange = () => document.getElementById("nuovaCategoria").style.display = select.value === "Altro" ? "block" : "none";
   document.getElementById("nuovaCategoria").value = "";
   document.getElementById("importo").value = "";
