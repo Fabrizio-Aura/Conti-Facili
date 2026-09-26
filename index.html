@@ -349,6 +349,9 @@ const categorieUscita = [
   "Altro"
 ];
   let categoriePersonalizzate = JSON.parse(localStorage.getItem("contiFaciliCategorie") || "[]");
+  function salvaCategoriePersonalizzate() {
+    localStorage.setItem("contiFaciliCategorie", JSON.stringify(categoriePersonalizzate));
+    }
 
 function euro(n) {
   return new Intl.NumberFormat("it-IT", {
@@ -393,7 +396,9 @@ function salva() {
     return;
   }
   if (!categoria) { alert("Scegli una categoria."); return; }
-  if (document.getElementById("categoria").value === "Altro" && categoria !== "Altro" && !categoriePersonalizzate.includes(categoria)) { categoriePersonalizzate.push(categoria); localStorage.setItem("contiFaciliCategorie", JSON.stringify(categoriePersonalizzate)); }
+  
+  if (document.getElementById("categoria").value === "Altro" && categoria !== "Altro" && !categoriePersonalizzate.includes(categoria)) { categoriePersonalizzate.push(categoria);  salvaCategoriePersonalizzate(); }
+  
 
   movimenti.unshift({
     id: Date.now(),
