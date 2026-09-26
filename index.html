@@ -1,0 +1,510 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#f5f7fb">
+<title>Conti Facili</title>
+
+<style>
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  background: #f5f7fb;
+  color: #172033;
+}
+
+.container {
+  max-width: 650px;
+  margin: auto;
+  padding: 22px 16px 50px;
+}
+
+h1 {
+  margin: 5px 0 2px;
+  text-align: center;
+  font-size: 32px;
+}
+
+.subtitle {
+  text-align: center;
+  color: #6b7280;
+  margin-bottom: 22px;
+}
+
+.card {
+  background: white;
+  border-radius: 20px;
+  padding: 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 5px 20px rgba(0,0,0,.06);
+}
+
+.saldo {
+  text-align: center;
+}
+
+.saldo small {
+  color: #6b7280;
+  font-size: 14px;
+}
+
+.saldo strong {
+  display: block;
+  font-size: 38px;
+  margin-top: 5px;
+}
+
+.totali {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-top: 15px;
+}
+
+.box {
+  padding: 12px;
+  border-radius: 14px;
+  text-align: center;
+  background: #f5f7fb;
+}
+
+.entrate { color: #16834b; }
+.uscite { color: #c43c3c; }
+
+.actions {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+button {
+  border: 0;
+  border-radius: 16px;
+  padding: 17px 10px;
+  font-size: 18px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.btn-in {
+  background: #16834b;
+  color: white;
+}
+
+.btn-out {
+  background: #d64a4a;
+  color: white;
+}
+
+.btn-save {
+  width: 100%;
+  background: #172033;
+  color: white;
+  margin-top: 8px;
+}
+
+.btn-cancel {
+  width: 100%;
+  background: #e9edf3;
+  color: #172033;
+  margin-top: 8px;
+}
+
+.form {
+  display: none;
+}
+
+.form.show {
+  display: block;
+}
+
+label {
+  display: block;
+  font-weight: 600;
+  margin: 13px 0 6px;
+}
+
+input, select {
+  width: 100%;
+  padding: 14px;
+  border: 1px solid #d6dbe4;
+  border-radius: 12px;
+  font-size: 17px;
+  background: white;
+}
+
+.importo {
+  font-size: 26px;
+  font-weight: bold;
+}
+
+.tabs {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 7px;
+  margin-bottom: 15px;
+}
+
+.tab {
+  background: #e9edf3;
+  font-size: 14px;
+  padding: 11px 4px;
+}
+
+.tab.active {
+  background: #172033;
+  color: white;
+}
+
+.riepilogo {
+  display: grid;
+  grid-template-columns: repeat(3,1fr);
+  gap: 8px;
+  text-align: center;
+}
+
+.riepilogo div {
+  background: #f5f7fb;
+  border-radius: 12px;
+  padding: 10px 4px;
+}
+
+.riepilogo small {
+  display: block;
+  color: #6b7280;
+  margin-bottom: 4px;
+}
+
+.movimento {
+  padding: 13px 0;
+  border-bottom: 1px solid #edf0f4;
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.movimento:last-child {
+  border-bottom: 0;
+}
+
+.movimento .info {
+  min-width: 0;
+}
+
+.movimento .categoria {
+  font-weight: 700;
+}
+
+.movimento .nota {
+  color: #6b7280;
+  font-size: 14px;
+  overflow-wrap: anywhere;
+}
+
+.movimento .data {
+  color: #9aa1ac;
+  font-size: 12px;
+  margin-top: 3px;
+}
+
+.movimento .valore {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.delete {
+  display: block;
+  font-size: 12px;
+  color: #9a3333;
+  cursor: pointer;
+  margin-top: 5px;
+  text-align: right;
+}
+
+.empty {
+  text-align: center;
+  color: #8b93a0;
+  padding: 20px 0;
+}
+
+h2 {
+  font-size: 19px;
+  margin-top: 0;
+}
+
+@media(max-width:420px) {
+  .container { padding: 15px 12px 40px; }
+  h1 { font-size: 29px; }
+}
+</style>
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>Conti Facili</h1>
+<div class="subtitle">Sai sempre quanto entra e quanto esce.</div>
+
+<div class="card saldo">
+  <small>Saldo totale</small>
+  <strong id="saldo">€ 0,00</strong>
+
+  <div class="totali">
+    <div class="box">
+      <small>Entrate</small>
+      <div class="entrate" id="totEntrate">€ 0,00</div>
+    </div>
+    <div class="box">
+      <small>Uscite</small>
+      <div class="uscite" id="totUscite">€ 0,00</div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="actions">
+    <button class="btn-in" onclick="apriForm('entrata')">+ ENTRATA</button>
+    <button class="btn-out" onclick="apriForm('uscita')">− USCITA</button>
+  </div>
+</div>
+
+<div class="card form" id="formMovimento">
+  <h2 id="titoloForm">Nuovo movimento</h2>
+
+  <label>Importo €</label>
+  <input class="importo" id="importo" type="number" inputmode="decimal" step="0.01" min="0" placeholder="0,00">
+
+  <label>Categoria</label>
+  <select id="categoria"></select>
+
+  <label>Nota (facoltativa)</label>
+  <input id="nota" type="text" placeholder="Es. benzina, pranzo, cliente...">
+
+  <button class="btn-save" onclick="salva()">SALVA</button>
+  <button class="btn-cancel" onclick="chiudiForm()">Annulla</button>
+</div>
+
+<div class="card">
+  <h2>Riepilogo</h2>
+
+  <div class="tabs">
+    <button class="tab active" onclick="cambiaPeriodo('oggi',this)">Oggi</button>
+    <button class="tab" onclick="cambiaPeriodo('mese',this)">Mese</button>
+    <button class="tab" onclick="cambiaPeriodo('anno',this)">Anno</button>
+  </div>
+
+  <div class="riepilogo">
+    <div>
+      <small>Entrate</small>
+      <strong class="entrate" id="periodoEntrate">€ 0,00</strong>
+    </div>
+    <div>
+      <small>Uscite</small>
+      <strong class="uscite" id="periodoUscite">€ 0,00</strong>
+    </div>
+    <div>
+      <small>Risultato</small>
+      <strong id="periodoSaldo">€ 0,00</strong>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <h2>Ultimi movimenti</h2>
+  <div id="lista"></div>
+</div>
+
+</div>
+
+<script>
+let movimenti = JSON.parse(localStorage.getItem("contiFaciliMovimenti") || "[]");
+let tipoCorrente = "entrata";
+let periodoCorrente = "oggi";
+
+const categorieEntrata = [
+  "Incasso",
+  "Vendita",
+  "Lavoro",
+  "Rimborso",
+  "Altro"
+];
+
+const categorieUscita = [
+  "Bar",
+  "Spesa alimentare",
+  "Carburante",
+  "Affitto",
+  "Bollette",
+  "Acquisto merce",
+  "Ristorante / Cena",
+  "Auto",
+  "Casa",
+  "Salute",
+  "Svago",
+  "Altro"
+];
+
+function euro(n) {
+  return new Intl.NumberFormat("it-IT", {
+    style:"currency",
+    currency:"EUR"
+  }).format(n);
+}
+
+function apriForm(tipo) {
+  tipoCorrente = tipo;
+  const form = document.getElementById("formMovimento");
+  const select = document.getElementById("categoria");
+
+  document.getElementById("titoloForm").textContent =
+    tipo === "entrata" ? "Nuova entrata" : "Nuova uscita";
+
+  const categorie = tipo === "entrata" ? categorieEntrata : categorieUscita;
+
+  select.innerHTML = categorie.map(c => `<option>${c}</option>`).join("");
+
+  document.getElementById("importo").value = "";
+  document.getElementById("nota").value = "";
+
+  form.classList.add("show");
+  setTimeout(() => document.getElementById("importo").focus(),100);
+}
+
+function chiudiForm() {
+  document.getElementById("formMovimento").classList.remove("show");
+}
+
+function salva() {
+  const importo = parseFloat(document.getElementById("importo").value);
+  const categoria = document.getElementById("categoria").value;
+  const nota = document.getElementById("nota").value.trim();
+
+  if (!importo || importo <= 0) {
+    alert("Inserisci un importo valido.");
+    return;
+  }
+
+  movimenti.unshift({
+    id: Date.now(),
+    tipo: tipoCorrente,
+    importo,
+    categoria,
+    nota,
+    data: new Date().toISOString()
+  });
+
+  localStorage.setItem("contiFaciliMovimenti", JSON.stringify(movimenti));
+
+  chiudiForm();
+  aggiorna();
+}
+
+function elimina(id) {
+  if (!confirm("Eliminare questo movimento?")) return;
+
+  movimenti = movimenti.filter(m => m.id !== id);
+  localStorage.setItem("contiFaciliMovimenti", JSON.stringify(movimenti));
+  aggiorna();
+}
+
+function stessoPeriodo(dataISO, periodo) {
+  const d = new Date(dataISO);
+  const oggi = new Date();
+
+  if (periodo === "oggi") {
+    return d.getDate() === oggi.getDate() &&
+           d.getMonth() === oggi.getMonth() &&
+           d.getFullYear() === oggi.getFullYear();
+  }
+
+  if (periodo === "mese") {
+    return d.getMonth() === oggi.getMonth() &&
+           d.getFullYear() === oggi.getFullYear();
+  }
+
+  return d.getFullYear() === oggi.getFullYear();
+}
+
+function cambiaPeriodo(periodo, bottone) {
+  periodoCorrente = periodo;
+
+  document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
+  bottone.classList.add("active");
+
+  aggiornaRiepilogo();
+}
+
+function aggiornaRiepilogo() {
+  const filtrati = movimenti.filter(m => stessoPeriodo(m.data, periodoCorrente));
+
+  const entrate = filtrati
+    .filter(m => m.tipo === "entrata")
+    .reduce((s,m) => s + m.importo, 0);
+
+  const uscite = filtrati
+    .filter(m => m.tipo === "uscita")
+    .reduce((s,m) => s + m.importo, 0);
+
+  document.getElementById("periodoEntrate").textContent = euro(entrate);
+  document.getElementById("periodoUscite").textContent = euro(uscite);
+  document.getElementById("periodoSaldo").textContent = euro(entrate - uscite);
+}
+
+function aggiorna() {
+  const entrate = movimenti
+    .filter(m => m.tipo === "entrata")
+    .reduce((s,m) => s + m.importo, 0);
+
+  const uscite = movimenti
+    .filter(m => m.tipo === "uscita")
+    .reduce((s,m) => s + m.importo, 0);
+
+  document.getElementById("totEntrate").textContent = euro(entrate);
+  document.getElementById("totUscite").textContent = euro(uscite);
+  document.getElementById("saldo").textContent = euro(entrate - uscite);
+
+  const lista = document.getElementById("lista");
+
+  if (!movimenti.length) {
+    lista.innerHTML = `<div class="empty">Nessun movimento ancora.<br>Inserisci la prima entrata o uscita.</div>`;
+  } else {
+    lista.innerHTML = movimenti.slice(0,30).map(m => {
+      const d = new Date(m.data);
+      const data = d.toLocaleString("it-IT", {
+        day:"2-digit",
+        month:"2-digit",
+        year:"numeric",
+        hour:"2-digit",
+        minute:"2-digit"
+      });
+
+      return `
+        <div class="movimento">
+          <div class="info">
+            <div class="categoria">${m.categoria}</div>
+            ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
+            <div class="data">${data}</div>
+          </div>
+
+          <div>
+            <div class="valore ${m.tipo === "entrata" ? "entrate" : "uscite"}">
+              ${m.tipo === "entrata" ? "+" : "−"} ${euro(m.importo)}
+            </div>
+            <span class="delete" onclick="elimina(${m.id})">Elimina</span>
+          </div>
+        </div>`;
+    }).join("");
+  }
+
+  aggiornaRiepilogo();
+}
+
+aggiorna();
+</script>
+
+</body>
+</html>
