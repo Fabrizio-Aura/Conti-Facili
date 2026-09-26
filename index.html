@@ -390,6 +390,7 @@ function salva() {
     alert("Inserisci un importo valido.");
     return;
   }
+  if (!categoria) { alert("Scegli una categoria."); return; }
 
   movimenti.unshift({
     id: Date.now(),
