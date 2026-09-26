@@ -280,6 +280,7 @@ h2 {
 
   <label>Categoria</label>
   <select id="categoria"></select>
+  <input id="nuovaCategoria" type="text" placeholder="Scrivi una nuova categoria" style="display:none;">
 
   <label>Nota (facoltativa)</label>
   <input id="nota" type="text" placeholder="Es. benzina, pranzo, cliente...">
@@ -366,7 +367,7 @@ function apriForm(tipo) {
   const categorie = tipo === "entrata" ? categorieEntrata : categorieUscita;
 
   select.innerHTML = categorie.map(c => `<option>${c}</option>`).join("");
-
+select.onchange = () => document.getElementById("nuovaCategoria").style.display = select.value === "Altro" ? "block" : "none";
   document.getElementById("importo").value = "";
   document.getElementById("nota").value = "";
 
@@ -380,7 +381,7 @@ function chiudiForm() {
 
 function salva() {
   const importo = parseFloat(document.getElementById("importo").value);
-  const categoria = document.getElementById("categoria").value;
+  let categoria = document.getElementById("categoria").value === "Altro" && document.getElementById("nuovaCategoria").value.trim() ? document.getElementById("nuovaCategoria").value.trim() : document.getElementById("categoria").value;
   const nota = document.getElementById("nota").value.trim();
 
   if (!importo || importo <= 0) {
