@@ -355,7 +355,7 @@ let periodoCorrente = "oggi";
         categoriePersonalizzate = Array.isArray(backup.categoriePersonalizzate) ? backup.categoriePersonalizzate : [];
         localStorage.setItem("contiFaciliMovimenti", JSON.stringify(movimenti));
         salvaCategoriePersonalizzate();
-        render();
+        
         alert("Backup ripristinato correttamente");
         } catch (e) {
         alert("Errore ripristino: " + e.message);
