@@ -348,6 +348,7 @@ const categorieUscita = [
   "Svago",
   "Altro"
 ];
+  let categoriePersonalizzate = JSON.parse(localStorage.getItem("contiFaciliCategorie") || "[]");
 
 function euro(n) {
   return new Intl.NumberFormat("it-IT", {
@@ -365,6 +366,7 @@ function apriForm(tipo) {
     tipo === "entrata" ? "Nuova entrata" : "Nuova uscita";
 
   const categorie = tipo === "entrata" ? categorieEntrata : categorieUscita;
+  
 
   select.innerHTML = categorie.map(c => `<option>${c}</option>`).join("");
   select.insertAdjacentHTML("afterbegin", '<option value="" selected disabled>Scegli categoria</option>');
@@ -391,6 +393,7 @@ function salva() {
     return;
   }
   if (!categoria) { alert("Scegli una categoria."); return; }
+  if (document.getElementById("categoria").value === "Altro" && categoria !== "Altro" && !categoriePersonalizzate.includes(categoria)) { categoriePersonalizzate.push(categoria); localStorage.setItem("contiFaciliCategorie", JSON.stringify(categoriePersonalizzate)); }
 
   movimenti.unshift({
     id: Date.now(),
@@ -405,6 +408,7 @@ function salva() {
 
   chiudiForm();
   aggiorna();
+  
 }
 
 function elimina(id) {
