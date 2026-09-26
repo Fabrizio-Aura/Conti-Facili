@@ -314,7 +314,12 @@ h2 {
     </div>
   </div>
 </div>
-
+<div class="card">
+  <h2>Backup dati</h2>
+  <button type="button" onclick="esportaBackup()">Salva backup</button>
+  <button type="button" onclick="document.getElementById('fileBackup').click()">Ripristina backup</button>
+  <input type="file" id="fileBackup" accept=".json" style="display:none;" onchange="if(this.files[0]) importaBackup(this.files[0]);">
+  </div>
 <div class="card">
   <h2>Ultimi movimenti</h2>
   <div id="lista"></div>
@@ -326,6 +331,38 @@ h2 {
 let movimenti = JSON.parse(localStorage.getItem("contiFaciliMovimenti") || "[]");
 let tipoCorrente = "entrata";
 let periodoCorrente = "oggi";
+  let categoriePersonalizzate = JSON.parse(localStorage.getItem("contiFaciliCategorie") || "[]");
+  function esportaBackup() {
+    const backup = {
+      movimenti: movimenti,
+      categoriePersonalizzate: categoriePersonalizzate
+        };
+    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "conti-facili-backup.json";
+    a.click();
+    URL.revokeObjectURL(url);
+    }
+  function importaBackup(file) {
+    const reader = new FileReader();
+    reader.onload = () => {
+      try {
+        const backup = JSON.parse(reader.result);
+        if (!backup || !Array.isArray(backup.movimenti)) throw new Error("Backup non valido");
+        movimenti = backup.movimenti;
+        categoriePersonalizzate = Array.isArray(backup.categoriePersonalizzate) ? backup.categoriePersonalizzate : [];
+        localStorage.setItem("contiFaciliMovimenti", JSON.stringify(movimenti));
+        salvaCategoriePersonalizzate();
+        render();
+        alert("Backup ripristinato correttamente");
+        } catch (e) {
+        alert("Errore: il file di backup non è valido");
+        }
+      };
+    reader.readAsText(file);
+    }
 
 const categorieEntrata = [
   "Incasso",
@@ -349,7 +386,7 @@ const categorieUscita = [
   "Svago",
   "Altro"
 ];
-  let categoriePersonalizzate = JSON.parse(localStorage.getItem("contiFaciliCategorie") || "[]");
+  
   function salvaCategoriePersonalizzate() {
     localStorage.setItem("contiFaciliCategorie", JSON.stringify(categoriePersonalizzate));
     }
