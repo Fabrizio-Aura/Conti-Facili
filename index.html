@@ -603,6 +603,40 @@ function aggiorna() {
 
 aggiorna();
 </script>
+<div style="text-align:center; padding:24px;">
+  <button type="button" id="escludiStatistiche"
+    style="padding:12px; font-size:14px;">
+    Escludi questo dispositivo dalle statistiche
+  </button>
+  <p id="statoStatistiche" role="status"></p>
+</div>
 
+<script>
+(function () {
+  var pulsante = document.getElementById("escludiStatistiche");
+  var stato = document.getElementById("statoStatistiche");
+
+  function mostraEsclusione() {
+    pulsante.hidden = true;
+    stato.textContent = "Le tue visite sono escluse dalle statistiche in questa app o browser.";
+  }
+
+  if (window.contiFaciliEscludiAnalytics) {
+    mostraEsclusione();
+  }
+
+  pulsante.addEventListener("click", function () {
+    window.contiFaciliEscludiAnalytics = true;
+    window["ga-disable-G-MT8ML6J4K9"] = true;
+
+    try {
+      localStorage.setItem("contiFaciliEscludiAnalytics", "1");
+      mostraEsclusione();
+    } catch (e) {
+      stato.textContent = "Esclusione attiva solo per questa apertura: impossibile salvare la preferenza.";
+    }
+  });
+})();
+</script>
 </body>
 </html>
