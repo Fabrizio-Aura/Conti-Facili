@@ -1,14 +1,38 @@
 <!DOCTYPE html>
 <html lang="it">
 <head>
-  <!-- Google tag (gtag.js) -->
-<script async src="https://www.googletagmanager.com/gtag/js?id=G-MT8ML6J4K9"></script>
+<!-- Google Analytics -->
 <script>
   window.dataLayer = window.dataLayer || [];
-  function gtag(){dataLayer.push(arguments);}
-  gtag('js', new Date());
+  function gtag(){ dataLayer.push(arguments); }
 
-  gtag('config', 'G-MT8ML6J4K9');
+  window.contiFaciliEscludiAnalytics = false;
+
+  try {
+    if (location.hash === "#escludi-statistiche") {
+      localStorage.setItem("contiFaciliEscludiAnalytics", "1");
+    }
+
+    window.contiFaciliEscludiAnalytics =
+      localStorage.getItem("contiFaciliEscludiAnalytics") === "1";
+  } catch (e) {
+    window.contiFaciliEscludiAnalytics =
+      location.hash === "#escludi-statistiche";
+  }
+
+  window["ga-disable-G-MT8ML6J4K9"] =
+    window.contiFaciliEscludiAnalytics;
+
+  if (!window.contiFaciliEscludiAnalytics) {
+    gtag("js", new Date());
+    gtag("config", "G-MT8ML6J4K9");
+
+    var analyticsScript = document.createElement("script");
+    analyticsScript.async = true;
+    analyticsScript.src =
+      "https://www.googletagmanager.com/gtag/js?id=G-MT8ML6J4K9";
+    document.head.appendChild(analyticsScript);
+  }
 </script>
   <link rel="apple-touch-icon" href="conti-facili-icon.png?v=2">
   <link rel="manifest" href="manifest.json?v=2">
