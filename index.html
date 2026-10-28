@@ -327,6 +327,15 @@ h2 {
 
 <div class="card">
   <h2>Riepilogo</h2>
+  <div id="navigazioneMese" hidden
+     style="margin-bottom:15px; text-align:center;">
+  <button type="button" onclick="spostaMese(-1)"
+          aria-label="Mese precedente">‹</button>
+  <strong id="meseVisualizzato"
+          style="margin:0 10px;" aria-live="polite"></strong>
+  <button type="button" onclick="spostaMese(1)"
+          aria-label="Mese successivo">›</button>
+</div>
 
   <div class="tabs">
     <button class="tab active" onclick="cambiaPeriodo('oggi',this)">Oggi</button>
@@ -366,6 +375,7 @@ h2 {
 let movimenti = JSON.parse(localStorage.getItem("contiFaciliMovimenti") || "[]");
 let tipoCorrente = "entrata";
 let periodoCorrente = "oggi";
+ let meseSelezionato = new Date(new Date().getFullYear(), new Date().getMonth(), 1); 
   let categoriePersonalizzate = JSON.parse(localStorage.getItem("contiFaciliCategorie") || "[]");
   function esportaBackup() {
     const backup = {
@@ -520,8 +530,8 @@ function stessoPeriodo(dataISO, periodo) {
   }
 
   if (periodo === "mese") {
-    return d.getMonth() === oggi.getMonth() &&
-           d.getFullYear() === oggi.getFullYear();
+    return d.getMonth() === meseSelezionato.getMonth() &&
+           d.getFullYear() === meseSelezionato.getFullYear();
   }
 
   return d.getFullYear() === oggi.getFullYear();
@@ -533,8 +543,16 @@ function cambiaPeriodo(periodo, bottone) {
   document.querySelectorAll(".tab").forEach(b => b.classList.remove("active"));
   bottone.classList.add("active");
 
-  aggiornaRiepilogo();
+  aggiorna();
 }
+function spostaMese(direzione) {
+  meseSelezionato = new Date(
+    meseSelezionato.getFullYear(),
+    meseSelezionato.getMonth() + direzione,
+    1
+  );
+  aggiorna();
+}  
 
 function aggiornaRiepilogo() {
   const filtrati = movimenti.filter(m => stessoPeriodo(m.data, periodoCorrente));
@@ -552,7 +570,14 @@ function aggiornaRiepilogo() {
   document.getElementById("periodoSaldo").textContent = euro(entrate - uscite);
 }
 
-function aggiorna() {
+function aggiorna() {document.getElementById("navigazioneMese").hidden =
+    periodoCorrente !== "mese";
+
+  document.getElementById("meseVisualizzato").textContent =
+    meseSelezionato.toLocaleDateString("it-IT", {
+      month: "long",
+      year: "numeric"
+    });
   const entrate = movimenti
     .filter(m => m.tipo === "entrata")
     .reduce((s,m) => s + m.importo, 0);
@@ -566,11 +591,14 @@ function aggiorna() {
   document.getElementById("saldo").textContent = euro(entrate - uscite);
 
   const lista = document.getElementById("lista");
+  const visibili = movimenti
+    .filter(m => stessoPeriodo(m.data, periodoCorrente))
+    .sort((a, b) => new Date(b.data) - new Date(a.data));
 
-  if (!movimenti.length) {
-    lista.innerHTML = `<div class="empty">Nessun movimento ancora.<br>Inserisci la prima entrata o uscita.</div>`;
+  if (!visibili.length) {
+    lista.innerHTML = '<div class="empty">Nessun movimento in questo periodo.</div>';
   } else {
-    lista.innerHTML = movimenti.slice(0,30).map(m => {
+    lista.innerHTML = visibili.map(m => {
       const d = new Date(m.data);
       const data = d.toLocaleString("it-IT", {
         day:"2-digit",
