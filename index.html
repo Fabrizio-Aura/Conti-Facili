@@ -283,6 +283,10 @@ h2 {
 
 <h1>Conti Facili</h1>
 <div class="subtitle">Sai sempre quanto entra e quanto esce.</div>
+<div style="text-align:center; margin:16px 0 20px;">
+  <button type="button" id="condividiApp" style="background:#172033; color:white; width:100%; padding:13px; border-radius:10px; cursor:pointer;">↗ Condividi l'app</button>
+  <p id="messaggioCondivisione" role="status" style="font-size:13px;"></p>
+</div>
 
 <div class="card saldo">
   <small>Saldo totale</small>
@@ -662,6 +666,29 @@ aggiorna();
       mostraEsclusione();
     } catch (e) {
       stato.textContent = "Esclusione attiva solo per questa apertura: impossibile salvare la preferenza.";
+    }
+  });
+})();
+</script>
+
+<script>
+(function () {
+  const pulsante = document.getElementById("condividiApp");
+  const messaggio = document.getElementById("messaggioCondivisione");
+  const url = "https://appcontifacili.it/";
+  pulsante.addEventListener("click", async function () {
+    const dati = { title: "Conti Facili", text: "Prova Conti Facili, l'app per gestire entrate e uscite.", url };
+    if (navigator.share) {
+      try { await navigator.share(dati); } catch (errore) {
+        if (errore.name !== "AbortError") messaggio.textContent = "Condivisione non riuscita. Riprova.";
+      }
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(url);
+      messaggio.textContent = "Link copiato! Ora puoi inviarlo a chi vuoi.";
+    } catch (errore) {
+      window.prompt("Copia questo link per condividere Conti Facili:", url);
     }
   });
 })();
