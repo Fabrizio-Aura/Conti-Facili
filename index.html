@@ -322,6 +322,9 @@ h2 {
   <input id="nuovaCategoria" type="text" placeholder="Scrivi una nuova categoria" style="display:none;">
   <button type="button" id="eliminaCategoriaBtn" style="display:none;">Elimina categoria</button>
 
+  <label for="contoMovimento" data-i18n-skip>Conto / carta</label>
+  <select id="contoMovimento" aria-label="Conto o carta" data-i18n-skip></select>
+
   <label>Nota (facoltativa)</label>
   <input id="nota" type="text" placeholder="Es. benzina, pranzo, cliente...">
 
@@ -362,6 +365,16 @@ h2 {
     </div>
   </div>
 </div>
+<div class="card" id="sezioneConti" data-i18n-skip>
+  <h2>Conti e carte</h2>
+  <p style="color:#6b7280;font-size:14px">Visualizza entrate e uscite registrate, non il saldo reale della banca.</p>
+  <div id="listaConti"></div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <input id="nomeNuovoConto" type="text" maxlength="45" placeholder="Nome carta o conto (es. Wise)" style="flex:1;min-width:170px">
+    <button type="button" id="aggiungiConto" style="font-size:14px;padding:13px;background:#172033;color:white">+ Aggiungi</button>
+  </div>
+  <div id="riepilogoConti" style="margin-top:12px;padding:12px;background:#f5f7fb;border-radius:12px"></div>
+</div>
 <div class="card">
   <h2>Backup dati</h2>
   <button type="button" onclick="esportaBackup()">Salva backup</button>
@@ -378,13 +391,59 @@ h2 {
 <script>
 let movimenti = JSON.parse(localStorage.getItem("contiFaciliMovimenti") || "[]");
 let tipoCorrente = "entrata";
+let contiPersonalizzati = JSON.parse(localStorage.getItem("contiFaciliConti") || "[]");
+if (!Array.isArray(contiPersonalizzati)) contiPersonalizzati = [];
+contiPersonalizzati = contiPersonalizzati.filter(c => c && typeof c.id === "string" && typeof c.nome === "string");
+let ultimoConto = localStorage.getItem("contiFaciliUltimoConto") || "contanti";
+function tuttiConti() { return [{id:"contanti",nome:"Contanti"}, ...contiPersonalizzati]; }
+function nomeConto(id) { return (tuttiConti().find(c => c.id === id) || tuttiConti()[0]).nome; }
+function salvaConti() { localStorage.setItem("contiFaciliConti",JSON.stringify(contiPersonalizzati)); }
+function aggiornaSelettoreConti() {
+ const select=document.getElementById("contoMovimento");
+ const precedente=select.value || ultimoConto;
+ select.replaceChildren();
+ tuttiConti().forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.nome;select.appendChild(o);});
+ select.value=tuttiConti().some(c=>c.id===precedente)?precedente:"contanti";
+}
+function aggiornaConti() {
+ const root=document.getElementById("listaConti");
+ root.replaceChildren();
+ const scelti=[];
+ tuttiConti().forEach(c=>{
+   const mov=movimenti.filter(m=>(m.contoId||"contanti")===c.id);
+   const entrate=mov.filter(m=>m.tipo==="entrata").reduce((a,m)=>a+m.importo,0);
+   const uscite=mov.filter(m=>m.tipo==="uscita").reduce((a,m)=>a+m.importo,0);
+   const r=document.createElement("div");r.style.cssText="display:flex;gap:8px;align-items:center;padding:10px 0;border-bottom:1px solid #edf0f4";
+   const check=document.createElement("input");check.type="checkbox";check.checked=true;check.style.cssText="width:22px;height:22px;flex-shrink:0";
+   const info=document.createElement("div");info.style.flex="1";
+   const name=document.createElement("strong");name.textContent=c.nome;
+   const sums=document.createElement("div");sums.style.cssText="font-size:13px;color:#6b7280";sums.textContent="Entrate "+euro(entrate)+" · Uscite "+euro(uscite)+" · Differenza "+euro(entrate-uscite);
+   info.append(name,sums);r.append(check,info);
+   if(c.id!=="contanti"){const del=document.createElement("button");del.type="button";del.textContent="×";del.title="Elimina carta vuota";del.style.cssText="font-size:18px;padding:5px 12px;background:#e9edf3";del.onclick=()=>{
+     if(mov.length){alert("Questa carta contiene movimenti: non può essere eliminata.");return;}
+     if(!confirm("Eliminare questa carta?"))return;
+     contiPersonalizzati=contiPersonalizzati.filter(x=>x.id!==c.id);salvaConti();aggiornaSelettoreConti();aggiornaConti();
+   };r.append(del);}
+   root.append(r);scelti.push({check,entrate,uscite});
+ });
+ const total=document.getElementById("riepilogoConti");
+ function calcola(){const active=scelti.filter(x=>x.check.checked);const e=active.reduce((a,x)=>a+x.entrate,0),u=active.reduce((a,x)=>a+x.uscite,0);total.textContent="Totale selezionato: Entrate "+euro(e)+" · Uscite "+euro(u)+" · Differenza "+euro(e-u);}
+ scelti.forEach(x=>x.check.onchange=calcola);calcola();
+}
+document.getElementById("aggiungiConto").onclick=()=>{
+ const input=document.getElementById("nomeNuovoConto"),nome=input.value.trim();
+ if(!nome)return;
+ if(tuttiConti().some(c=>c.nome.toLocaleLowerCase()===nome.toLocaleLowerCase())){alert("Questo conto esiste già.");return;}
+ contiPersonalizzati.push({id:"conto-"+Date.now()+"-"+Math.random().toString(36).slice(2,7),nome});salvaConti();input.value="";aggiornaSelettoreConti();aggiornaConti();
+};
 let periodoCorrente = "oggi";
  let meseSelezionato = new Date(new Date().getFullYear(), new Date().getMonth(), 1); 
   let categoriePersonalizzate = JSON.parse(localStorage.getItem("contiFaciliCategorie") || "[]");
   function esportaBackup() {
     const backup = {
       movimenti: movimenti,
-      categoriePersonalizzate: categoriePersonalizzate
+      categoriePersonalizzate: categoriePersonalizzate,
+      contiPersonalizzati: contiPersonalizzati
         };
     const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
     const url = URL.createObjectURL(blob);
@@ -402,8 +461,16 @@ let periodoCorrente = "oggi";
         if (!backup || !Array.isArray(backup.movimenti)) throw new Error("Backup non valido");
         movimenti = backup.movimenti;
         categoriePersonalizzate = Array.isArray(backup.categoriePersonalizzate) ? backup.categoriePersonalizzate : [];
+        if (Array.isArray(backup.contiPersonalizzati)) {
+          contiPersonalizzati=backup.contiPersonalizzati.filter(c=>c && typeof c.id==="string" && typeof c.nome==="string");
+          salvaConti();
+        } else if (movimenti.some(m=>m.contoId && m.contoId!=="contanti")) {
+          // Old backups may not contain account definitions; preserve existing account names.
+        } else { contiPersonalizzati=[]; salvaConti(); }
         localStorage.setItem("contiFaciliMovimenti", JSON.stringify(movimenti));
         salvaCategoriePersonalizzate();
+        aggiornaSelettoreConti();
+        aggiorna();
         
         alert("Backup ripristinato correttamente");
         } catch (e) {
@@ -456,6 +523,7 @@ function apriForm(tipo) {
   tipoCorrente = tipo;
   const form = document.getElementById("formMovimento");
   const select = document.getElementById("categoria");
+  aggiornaSelettoreConti();
 
   document.getElementById("titoloForm").textContent =
     tipo === "entrata" ? "Nuova entrata" : "Nuova uscita";
@@ -505,10 +573,13 @@ function salva() {
     importo,
     categoria,
     nota,
+    contoId: document.getElementById("contoMovimento").value || "contanti",
     data: new Date().toISOString()
   });
 
   localStorage.setItem("contiFaciliMovimenti", JSON.stringify(movimenti));
+  ultimoConto=document.getElementById("contoMovimento").value || "contanti";
+  localStorage.setItem("contiFaciliUltimoConto",ultimoConto);
 
   chiudiForm();
   aggiorna();
@@ -617,7 +688,7 @@ function aggiorna() {document.getElementById("navigazioneMese").hidden =
           <div class="info">
             <div class="categoria">${m.categoria}</div>
             ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
-            <div class="data">${data}</div>
+            <div class="data">${data} · ${nomeConto(m.contoId||"contanti")}</div>
           </div>
 
           <div>
@@ -631,8 +702,10 @@ function aggiorna() {document.getElementById("navigazioneMese").hidden =
   }
 
   aggiornaRiepilogo();
+  aggiornaConti();
 }
 
+aggiornaSelettoreConti();
 aggiorna();
 </script>
 <div style="text-align:center; padding:24px;">
