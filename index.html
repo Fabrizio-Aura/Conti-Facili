@@ -506,15 +506,16 @@ let periodoCorrente = "oggi";
         catch(e){throw Error("Password errata oppure file danneggiato");}
         backup=JSON.parse(new TextDecoder().decode(decoded));
       } else if(!confirm("Questo backup non è cifrato. Vuoi ripristinarlo?"))return;
-      if(!backup || !Array.isArray(backup.movimenti) || !Array.isArray(backup.categoriePersonalizzate))throw Error("Backup non valido");
+      if(!backup || !Array.isArray(backup.movimenti))throw Error("Backup non valido");
       if(!confirm("Il ripristino sostituirà i movimenti presenti su questo dispositivo. Continuare?"))return;
       // Validate the whole payload before writing any data.
       if(!backup.movimenti.every(m=>m && typeof m==="object" && ["entrata","uscita"].includes(m.tipo) && Number.isFinite(m.importo) && m.importo>=0 && typeof m.data==="string"))throw Error("Movimenti non validi");
-      const nuoveCategorie=backup.categoriePersonalizzate.filter(c=>typeof c==="string");
+      const nuoveCategorie=(Array.isArray(backup.categoriePersonalizzate)?backup.categoriePersonalizzate:[]).filter(c=>typeof c==="string");
       const nuoviConti=Array.isArray(backup.contiPersonalizzati)?backup.contiPersonalizzati.filter(c=>c && typeof c.id==="string" && typeof c.nome==="string"):null;
       localStorage.setItem("contiFaciliMovimenti",JSON.stringify(backup.movimenti));
       localStorage.setItem("contiFaciliCategorie",JSON.stringify(nuoveCategorie));
-      if(nuoviConti!==null)localStorage.setItem("contiFaciliConti",JSON.stringify(nuoviConti));
+      localStorage.setItem("contiFaciliConti",JSON.stringify(nuoviConti||[]));
+      localStorage.setItem("contiFaciliUltimoConto","contanti");
       alert("Backup ripristinato correttamente. La pagina verrà ricaricata.");
       location.reload();
     }catch(e){alert("Errore ripristino: "+e.message);}
