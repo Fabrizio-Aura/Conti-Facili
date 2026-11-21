@@ -377,7 +377,8 @@ h2 {
 </div>
 <div class="card">
   <h2>Backup dati</h2>
-  <button type="button" onclick="esportaBackup()">Salva backup</button>
+<p style="font-size:14px;color:#6b7280">Backup cifrato con password personale (minimo 12 caratteri). Senza password non è recuperabile. Sono importabili anche i backup precedenti.</p>
+  <button type="button" onclick="esportaBackup()">Salva backup protetto</button>
   <button type="button" onclick="document.getElementById('fileBackup').click()">Ripristina backup</button>
   <input type="file" id="fileBackup" accept=".json" style="display:none;" onchange="if(this.files[0]) importaBackup(this.files[0]);">
   </div>
@@ -439,46 +440,69 @@ document.getElementById("aggiungiConto").onclick=()=>{
 let periodoCorrente = "oggi";
  let meseSelezionato = new Date(new Date().getFullYear(), new Date().getMonth(), 1); 
   let categoriePersonalizzate = JSON.parse(localStorage.getItem("contiFaciliCategorie") || "[]");
-  function esportaBackup() {
-    const backup = {
-      movimenti: movimenti,
-      categoriePersonalizzate: categoriePersonalizzate,
-      contiPersonalizzati: contiPersonalizzati
-        };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "conti-facili-backup.json";
-    a.click();
-    URL.revokeObjectURL(url);
-    }
-  function importaBackup(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const backup = JSON.parse(reader.result);
-        if (!backup || !Array.isArray(backup.movimenti)) throw new Error("Backup non valido");
-        movimenti = backup.movimenti;
-        categoriePersonalizzate = Array.isArray(backup.categoriePersonalizzate) ? backup.categoriePersonalizzate : [];
-        if (Array.isArray(backup.contiPersonalizzati)) {
-          contiPersonalizzati=backup.contiPersonalizzati.filter(c=>c && typeof c.id==="string" && typeof c.nome==="string");
-          salvaConti();
-        } else if (movimenti.some(m=>m.contoId && m.contoId!=="contanti")) {
-          // Old backups may not contain account definitions; preserve existing account names.
-        } else { contiPersonalizzati=[]; salvaConti(); }
-        localStorage.setItem("contiFaciliMovimenti", JSON.stringify(movimenti));
-        salvaCategoriePersonalizzate();
-        aggiornaSelettoreConti();
-        aggiorna();
-        
-        alert("Backup ripristinato correttamente");
-        } catch (e) {
-        alert("Errore ripristino: " + e.message);
-        }
-      };
-    reader.readAsText(file);
-    }
+  async function chiaveBackup(password, salt) {
+    const encoder=new TextEncoder();
+    const base=await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveKey"]);
+    return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+  }
+  function bytesBase64(bytes) {
+    let s="";for(const b of bytes)s+=String.fromCharCode(b);return btoa(s);
+  }
+  function base64Bytes(value) {
+    const s=atob(value);return Uint8Array.from(s,c=>c.charCodeAt(0));
+  }
+  function scaricaBackup(backup,filename) {
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  async function esportaBackup() {
+    if(!window.crypto || !crypto.subtle){alert("Cifratura non disponibile su questo dispositivo.");return;}
+    const password=prompt("Scegli una password per il backup (almeno 12 caratteri). Conservala: senza di essa non potrai recuperare i dati.");
+    if(password===null)return;
+    if(password.length<12){alert("La password deve avere almeno 12 caratteri.");return;}
+    const conferma=prompt("Ripeti la password del backup:");
+    if(conferma===null)return;
+    if(password!==conferma){alert("Le password non coincidono.");return;}
+    try {
+      const payload={movimenti,categoriePersonalizzate};
+      if(typeof contiPersonalizzati!=="undefined")payload.contiPersonalizzati=contiPersonalizzati;
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const key=await chiaveBackup(password,salt);
+      const data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(payload)));
+      scaricaBackup({formato:"conti-facili-cifrato",versione:1,kdf:"PBKDF2-SHA256",iterazioni:310000,cifratura:"AES-256-GCM",salt:bytesBase64(salt),iv:bytesBase64(iv),dati:bytesBase64(new Uint8Array(data))},"conti-facili-backup-protetto.json");
+      alert("Backup protetto salvato. Conserva la password in un luogo sicuro.");
+    }catch(e){alert("Impossibile creare il backup protetto.");}
+  }
+  async function importaBackup(file) {
+    try {
+      const backupFile=JSON.parse(await file.text());
+      let backup=backupFile;
+      if(backupFile && backupFile.formato==="conti-facili-cifrato") {
+        if(backupFile.versione!==1 || backupFile.kdf!=="PBKDF2-SHA256" || backupFile.iterazioni!==310000 || backupFile.cifratura!=="AES-256-GCM")throw Error("Formato cifrato non supportato");
+        const password=prompt("Inserisci la password del backup protetto:");
+        if(password===null)return;
+        const key=await chiaveBackup(password,base64Bytes(backupFile.salt));
+        let decoded;
+        try{decoded=await crypto.subtle.decrypt({name:"AES-GCM",iv:base64Bytes(backupFile.iv)},key,base64Bytes(backupFile.dati));}
+        catch(e){throw Error("Password errata oppure file danneggiato");}
+        backup=JSON.parse(new TextDecoder().decode(decoded));
+      } else if(!confirm("Questo backup non è cifrato. Vuoi ripristinarlo?"))return;
+      if(!backup || !Array.isArray(backup.movimenti) || !Array.isArray(backup.categoriePersonalizzate))throw Error("Backup non valido");
+      if(!confirm("Il ripristino sostituirà i movimenti presenti su questo dispositivo. Continuare?"))return;
+      // Validate the whole payload before writing any data.
+      if(!backup.movimenti.every(m=>m && typeof m==="object" && ["entrata","uscita"].includes(m.tipo) && Number.isFinite(m.importo) && m.importo>=0 && typeof m.data==="string"))throw Error("Movimenti non validi");
+      const nuoveCategorie=backup.categoriePersonalizzate.filter(c=>typeof c==="string");
+      const nuoviConti=Array.isArray(backup.contiPersonalizzati)?backup.contiPersonalizzati.filter(c=>c && typeof c.id==="string" && typeof c.nome==="string"):null;
+      localStorage.setItem("contiFaciliMovimenti",JSON.stringify(backup.movimenti));
+      localStorage.setItem("contiFaciliCategorie",JSON.stringify(nuoveCategorie));
+      if(nuoviConti!==null)localStorage.setItem("contiFaciliConti",JSON.stringify(nuoviConti));
+      alert("Backup ripristinato correttamente. La pagina verrà ricaricata.");
+      location.reload();
+    }catch(e){alert("Errore ripristino: "+e.message);}
+  }
 
 const categorieEntrata = [
   "Incasso",
