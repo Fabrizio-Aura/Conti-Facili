@@ -399,9 +399,25 @@ let ultimoConto = localStorage.getItem("contiFaciliUltimoConto") || "contanti";
 function tuttiConti() { return [{id:"contanti",nome:"Contanti"}, ...contiPersonalizzati]; }
 function nomeConto(id) { return (tuttiConti().find(c => c.id === id) || tuttiConti()[0]).nome; }
 function salvaConti() { localStorage.setItem("contiFaciliConti",JSON.stringify(contiPersonalizzati)); }
+function contoPreferito() {
+ const validi=new Set(tuttiConti().map(c=>c.id));
+ const conteggi=new Map();
+ for(const m of movimenti) {
+   const id=m.contoId||"contanti";
+   if(validi.has(id))conteggi.set(id,(conteggi.get(id)||0)+1);
+ }
+ let scelto=validi.has(ultimoConto)?ultimoConto:"contanti", massimo=conteggi.get(scelto)||0;
+ for(const [id,numero] of conteggi) {
+   if(numero>massimo){scelto=id;massimo=numero;}
+ }
+ return scelto;
+}
+function testoSicuro(value) {
+ return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
 function aggiornaSelettoreConti() {
  const select=document.getElementById("contoMovimento");
- const precedente=select.value || ultimoConto;
+ const precedente=select.value || contoPreferito();
  select.replaceChildren();
  tuttiConti().forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.nome;select.appendChild(o);});
  select.value=tuttiConti().some(c=>c.id===precedente)?precedente:"contanti";
@@ -547,6 +563,7 @@ function apriForm(tipo) {
   tipoCorrente = tipo;
   const form = document.getElementById("formMovimento");
   const select = document.getElementById("categoria");
+  document.getElementById("contoMovimento").value = contoPreferito();
   aggiornaSelettoreConti();
 
   document.getElementById("titoloForm").textContent =
@@ -555,7 +572,8 @@ function apriForm(tipo) {
   const categorie = tipo === "entrata" ? categorieEntrata : categorieUscita;
   
 
-  select.innerHTML = [...categorie, ...categoriePersonalizzate].map(c => `<option>${c}</option>`).join("");
+  select.replaceChildren();
+  [...categorie,...categoriePersonalizzate].forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;select.appendChild(o);});
   select.insertAdjacentHTML("afterbegin", '<option value="" selected disabled>Scegli categoria</option>');
 select.onchange = () => {
   document.getElementById("nuovaCategoria").style.display = select.value === "Altro" ? "block" : "none";
@@ -710,9 +728,9 @@ function aggiorna() {document.getElementById("navigazioneMese").hidden =
       return `
         <div class="movimento">
           <div class="info">
-            <div class="categoria">${m.categoria}</div>
-            ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
-            <div class="data">${data} · ${nomeConto(m.contoId||"contanti")}</div>
+            <div class="categoria">${testoSicuro(m.categoria)}</div>
+            ${m.nota ? `<div class="nota">${testoSicuro(m.nota)}</div>` : ""}
+            <div class="data">${testoSicuro(data)} · ${testoSicuro(nomeConto(m.contoId||"contanti"))}</div>
           </div>
 
           <div>
