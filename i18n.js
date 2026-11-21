@@ -15,6 +15,12 @@ function translateNode(node){
  if(node.nodeType===3){const raw=node.nodeValue,trim=raw.trim();const key=original[trim]||canonical[trim];if(key){const changed=t(key);if(trim!==changed)node.nodeValue=raw.replace(trim,changed);}return;}
  if(node.nodeType!==1||["SCRIPT","STYLE","TEXTAREA"].includes(node.tagName))return;
  if(node.hasAttribute("data-i18n-skip"))return;
+ // Main transaction buttons use uppercase singular labels, not the plural summary labels.
+ if(node.tagName==="BUTTON" && (node.classList.contains("btn-in")||node.classList.contains("btn-out"))){
+  const isIncome=node.classList.contains("btn-in");
+  node.textContent=(isIncome?"+ ":"− ")+t(isIncome?"income":"expenses").toLocaleUpperCase(locale[current]);
+  return;
+ }
  for(const attr of ["placeholder","aria-label"]){const val=node.getAttribute(attr);const key=original[val]||canonical[val];if(key)node.setAttribute(attr,t(key));}
  if(node.tagName==="OPTION" && node.closest("#categoria")){const raw=node.value;const key=original[raw];if(key){node.setAttribute("value",raw);node.textContent=t(key);}return;}
  if(node.classList.contains("categoria")){const key=original[node.textContent.trim()];if(key)node.textContent=t(key);return;}
