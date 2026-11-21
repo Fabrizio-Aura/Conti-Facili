@@ -16,7 +16,7 @@ function translateNode(node){
  if(node.nodeType!==1||["SCRIPT","STYLE","TEXTAREA"].includes(node.tagName))return;
  if(node.hasAttribute("data-i18n-skip"))return;
  for(const attr of ["placeholder","aria-label"]){const val=node.getAttribute(attr);const key=original[val]||canonical[val];if(key)node.setAttribute(attr,t(key));}
- if(node.tagName==="OPTION" && node.closest("#categoria")){const raw=node.value;const key=original[raw];if(key)node.textContent=t(key);return;}
+ if(node.tagName==="OPTION" && node.closest("#categoria")){const raw=node.value;const key=original[raw];if(key){node.setAttribute("value",raw);node.textContent=t(key);}return;}
  if(node.classList.contains("categoria")){const key=original[node.textContent.trim()];if(key)node.textContent=t(key);return;}
  for(const child of Array.from(node.childNodes))translateNode(child);
 }
@@ -26,7 +26,7 @@ function refresh(){
  translateNode(document.body);
  const month=document.getElementById("meseVisualizzato");
  if(month && typeof meseSelezionato!=="undefined")month.textContent=meseSelezionato.toLocaleDateString(locale[current],{month:"long",year:"numeric"});
- document.querySelectorAll("#categoria option").forEach(opt=>{const key=original[opt.value];if(key)opt.textContent=t(key);});
+ document.querySelectorAll("#categoria option").forEach(opt=>{const key=original[opt.value];if(key){opt.setAttribute("value",opt.value);opt.textContent=t(key);}});
 }
 const picker=document.createElement("div");picker.style.cssText="display:flex;justify-content:center;align-items:center;gap:8px;margin:10px 0 4px";
 const label=document.createElement("label");label.htmlFor="linguaApp";label.textContent="🌐";label.style.cssText="margin:0;font-size:22px";
