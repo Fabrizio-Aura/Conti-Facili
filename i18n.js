@@ -22,7 +22,7 @@ function translateNode(node){
   return;
  }
  for(const attr of ["placeholder","aria-label"]){const val=node.getAttribute(attr);const key=original[val]||canonical[val];if(key)node.setAttribute(attr,t(key));}
- if(node.tagName==="OPTION" && node.closest("#categoria")){const raw=node.value;const key=original[raw];if(key){node.setAttribute("value",raw);node.textContent=t(key);}return;}
+ if(node.tagName==="OPTION" && node.closest("#categoria")){const raw=node.value;if(raw===""){node.textContent=t("chooseCategory");return;}const key=original[raw];if(key){node.setAttribute("value",raw);node.textContent=t(key);}return;}
  if(node.classList.contains("categoria")){const key=original[node.textContent.trim()];if(key)node.textContent=t(key);return;}
  for(const child of Array.from(node.childNodes))translateNode(child);
 }
