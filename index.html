@@ -512,10 +512,22 @@ let periodoCorrente = "oggi";
       if(!backup.movimenti.every(m=>m && typeof m==="object" && ["entrata","uscita"].includes(m.tipo) && Number.isFinite(m.importo) && m.importo>=0 && typeof m.data==="string"))throw Error("Movimenti non validi");
       const nuoveCategorie=(Array.isArray(backup.categoriePersonalizzate)?backup.categoriePersonalizzate:[]).filter(c=>typeof c==="string");
       const nuoviConti=Array.isArray(backup.contiPersonalizzati)?backup.contiPersonalizzati.filter(c=>c && typeof c.id==="string" && typeof c.nome==="string"):null;
-      localStorage.setItem("contiFaciliMovimenti",JSON.stringify(backup.movimenti));
-      localStorage.setItem("contiFaciliCategorie",JSON.stringify(nuoveCategorie));
-      localStorage.setItem("contiFaciliConti",JSON.stringify(nuoviConti||[]));
-      localStorage.setItem("contiFaciliUltimoConto","contanti");
+      // Keep the previous data if any storage write fails.
+      const valoriNuovi={
+        contiFaciliMovimenti:JSON.stringify(backup.movimenti),
+        contiFaciliCategorie:JSON.stringify(nuoveCategorie),
+        contiFaciliConti:JSON.stringify(nuoviConti||[]),
+        contiFaciliUltimoConto:"contanti"
+      };
+      const valoriPrecedenti=Object.fromEntries(Object.keys(valoriNuovi).map(k=>[k,localStorage.getItem(k)]));
+      try {
+        for(const [k,v] of Object.entries(valoriNuovi))localStorage.setItem(k,v);
+      }catch(errore){
+        for(const [k,v] of Object.entries(valoriPrecedenti)){
+          try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(_){}
+        }
+        throw Error("Spazio insufficiente o memoria non disponibile: dati precedenti conservati, se il dispositivo lo consente");
+      }
       alert("Backup ripristinato correttamente. La pagina verrà ricaricata.");
       location.reload();
     }catch(e){alert("Errore ripristino: "+e.message);}
