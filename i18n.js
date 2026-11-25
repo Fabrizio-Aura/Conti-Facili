@@ -40,16 +40,68 @@ const select=document.createElement("select");select.id="linguaApp";select.setAt
 for(const [key,name] of Object.entries(languages)){const option=document.createElement("option");option.value=key;option.textContent=name;select.appendChild(option);}
 picker.append(label,select);
 document.querySelector(".container h1").insertAdjacentElement("afterend",picker);
-select.addEventListener("change",()=>{current=select.value;try{localStorage.setItem("contiFaciliLingua",current);}catch(e){}refresh();});
+/* Currency belongs to the ledger, not the interface language. Existing ledgers are EUR. */
+const currencyCodes=["EUR","USD","GBP","CHF","CAD","AUD","BRL","PLN","RON","TRY","CNY"];
+const currencyNames={it:"Valuta",en:"Currency",es:"Moneda",fr:"Devise",de:"Währung",pt:"Moeda",pl:"Waluta",ro:"Monedă",nl:"Valuta",tr:"Para birimi",zh:"货币"};
+const currencyLockedMessage={
+ it:"Hai già movimenti registrati: la valuta resta in EUR (o nella valuta originale). Cambiare solo il simbolo non convertirebbe gli importi. Salva un backup prima di iniziare una contabilità in un'altra valuta.",
+ en:"You already have transactions. The original currency is preserved: changing the symbol would not convert amounts. Save a backup before starting a ledger in another currency.",
+ es:"Ya tienes movimientos. Se conserva la moneda original: cambiar el símbolo no convierte los importes. Guarda una copia antes de empezar otra contabilidad.",
+ fr:"Vous avez déjà des opérations. La devise d'origine est conservée : changer le symbole ne convertit pas les montants. Sauvegardez d'abord vos données.",
+ de:"Es gibt bereits Buchungen. Die ursprüngliche Währung bleibt erhalten; ein anderes Symbol würde Beträge nicht umrechnen. Bitte zuerst sichern.",
+ pt:"Já existem lançamentos. A moeda original será mantida; trocar o símbolo não converte valores. Salve um backup primeiro.",
+ pl:"Istnieją już transakcje. Zachowano pierwotną walutę; zmiana symbolu nie przelicza kwot. Najpierw zapisz kopię.",
+ ro:"Există deja tranzacții. Moneda inițială rămâne; schimbarea simbolului nu convertește sumele. Salvează mai întâi o copie.",
+ nl:"Er zijn al transacties. De oorspronkelijke valuta blijft; alleen het symbool wijzigen rekent bedragen niet om. Maak eerst een back-up.",
+ tr:"Kayıtlı işlemler var. Orijinal para birimi korunur; simge değişikliği tutarları dönüştürmez. Önce yedekleyin.",
+ zh:"已有交易记录。保留原币种；只改货币符号不会换算金额。请先备份。"
+};
+function suggestedCurrency(){
+ const region=(navigator.language||"").split("-")[1]?.toUpperCase();
+ const byRegion={US:"USD",GB:"GBP",CH:"CHF",CA:"CAD",AU:"AUD",BR:"BRL",PL:"PLN",RO:"RON",TR:"TRY",CN:"CNY"};
+ return byRegion[region]||"EUR";
+}
+let ledgerCurrency;
+try{ledgerCurrency=localStorage.getItem("contiFaciliValuta");}catch(e){}
+if(!currencyCodes.includes(ledgerCurrency)){
+ const hasOldMovements=typeof movimenti!=="undefined"&&movimenti.length>0;
+ ledgerCurrency=hasOldMovements?"EUR":suggestedCurrency();
+}
+const currencyPicker=document.createElement("div");
+currencyPicker.style.cssText="display:flex;justify-content:center;align-items:center;gap:8px;margin:2px 0 12px";
+const currencyLabel=document.createElement("label");
+currencyLabel.htmlFor="valutaApp";currencyLabel.style.cssText="margin:0;font-size:14px";
+const currencySelect=document.createElement("select");
+currencySelect.id="valutaApp";currencySelect.style.cssText="width:auto;max-width:85%;padding:8px 12px;font-size:15px";
+for(const code of currencyCodes){const opt=document.createElement("option");opt.value=code;opt.textContent=code;currencySelect.appendChild(opt);}
+currencySelect.value=ledgerCurrency;
+currencyPicker.append(currencyLabel,currencySelect);
+picker.insertAdjacentElement("afterend",currencyPicker);
+function refreshCurrencyLabel(){currencyLabel.textContent=(currencyNames[current]||currencyNames.it)+":";currencySelect.value=ledgerCurrency;}
+currencySelect.addEventListener("change",()=>{
+ const next=currencySelect.value;
+ if(next===ledgerCurrency)return;
+ if(typeof movimenti!=="undefined"&&movimenti.length){
+   currencySelect.value=ledgerCurrency;
+   originalAlert.call(window,currencyLockedMessage[current]||currencyLockedMessage.it);
+   return;
+ }
+ ledgerCurrency=next;
+ try{localStorage.setItem("contiFaciliValuta",ledgerCurrency);}catch(e){}
+ if(typeof aggiorna==="function")aggiorna();
+});
+select.addEventListener("change",()=>{current=select.value;try{localStorage.setItem("contiFaciliLingua",current);}catch(e){}refresh();refreshCurrencyLabel();if(typeof aggiorna==="function")aggiorna();});
 /* Preserve internal Italian category values and transaction records. Translate only presentation. */
 const originalAlert=window.alert,originalConfirm=window.confirm,originalPrompt=window.prompt;
 window.alert=function(message){const s=String(message);const prefix=rows.it[keys.indexOf("restoreError")];return originalAlert.call(window,s.startsWith(prefix)?t("restoreError")+s.slice(prefix.length):t(original[s]||s));};
 window.confirm=function(message){return originalConfirm.call(window,t(original[String(message)]||String(message)));};
 window.prompt=function(message,value){return originalPrompt.call(window,t(original[String(message)]||String(message)),value);};
 const originalEuro=window.euro;
-if(typeof originalEuro==="function")window.euro=function(n){return new Intl.NumberFormat(locale[current],{style:"currency",currency:"EUR"}).format(n);};
+if(typeof originalEuro==="function")window.euro=function(n){return new Intl.NumberFormat(locale[current],{style:"currency",currency:ledgerCurrency}).format(n);};
 let busy=false;
 const observer=new MutationObserver(()=>{if(busy)return;busy=true;observer.disconnect();try{refresh();}finally{observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["placeholder","aria-label"]});busy=false;}});
 refresh();
+refreshCurrencyLabel();
+if(typeof aggiorna==="function")aggiorna();
 observer.observe(document.body,{subtree:true,childList:true,characterData:true,attributes:true,attributeFilter:["placeholder","aria-label"]});
 })();
