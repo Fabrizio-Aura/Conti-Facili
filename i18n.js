@@ -78,7 +78,7 @@ for(const code of currencyCodes){const opt=document.createElement("option");opt.
 currencySelect.value=ledgerCurrency;
 currencyPicker.append(currencyLabel,currencySelect);
 picker.insertAdjacentElement("afterend",currencyPicker);
-function refreshCurrencyLabel(){currencyLabel.textContent=(currencyNames[current]||currencyNames.it)+":";currencySelect.value=ledgerCurrency;}
+function refreshCurrencyLabel(){currencyLabel.textContent=(currencyNames[current]||currencyNames.it)+":";currencySelect.value=ledgerCurrency;const amountInput=document.getElementById("importo");const amountLabel=amountInput?.previousElementSibling;if(amountLabel?.tagName==="LABEL")amountLabel.textContent=t("amount").replace("€","("+ledgerCurrency+")");}
 currencySelect.addEventListener("change",()=>{
  const next=currencySelect.value;
  if(next===ledgerCurrency)return;
