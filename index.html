@@ -377,7 +377,8 @@ h2 {
 </div>
 <div class="card">
   <h2>Backup dati</h2>
-  <button type="button" onclick="esportaBackup()">Salva backup</button>
+<p style="font-size:14px;color:#6b7280">Backup cifrato con password personale (minimo 12 caratteri). Senza password non è recuperabile. Sono importabili anche i backup precedenti.</p>
+  <button type="button" onclick="esportaBackup()">Salva backup protetto</button>
   <button type="button" onclick="document.getElementById('fileBackup').click()">Ripristina backup</button>
   <input type="file" id="fileBackup" accept=".json" style="display:none;" onchange="if(this.files[0]) importaBackup(this.files[0]);">
   </div>
@@ -398,9 +399,25 @@ let ultimoConto = localStorage.getItem("contiFaciliUltimoConto") || "contanti";
 function tuttiConti() { return [{id:"contanti",nome:"Contanti"}, ...contiPersonalizzati]; }
 function nomeConto(id) { return (tuttiConti().find(c => c.id === id) || tuttiConti()[0]).nome; }
 function salvaConti() { localStorage.setItem("contiFaciliConti",JSON.stringify(contiPersonalizzati)); }
+function contoPreferito() {
+ const validi=new Set(tuttiConti().map(c=>c.id));
+ const conteggi=new Map();
+ for(const m of movimenti) {
+   const id=m.contoId||"contanti";
+   if(validi.has(id))conteggi.set(id,(conteggi.get(id)||0)+1);
+ }
+ let scelto=validi.has(ultimoConto)?ultimoConto:"contanti", massimo=conteggi.get(scelto)||0;
+ for(const [id,numero] of conteggi) {
+   if(numero>massimo){scelto=id;massimo=numero;}
+ }
+ return scelto;
+}
+function testoSicuro(value) {
+ return String(value??"").replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
 function aggiornaSelettoreConti() {
  const select=document.getElementById("contoMovimento");
- const precedente=select.value || ultimoConto;
+ const precedente=select.value || contoPreferito();
  select.replaceChildren();
  tuttiConti().forEach(c=>{const o=document.createElement("option");o.value=c.id;o.textContent=c.nome;select.appendChild(o);});
  select.value=tuttiConti().some(c=>c.id===precedente)?precedente:"contanti";
@@ -439,46 +456,82 @@ document.getElementById("aggiungiConto").onclick=()=>{
 let periodoCorrente = "oggi";
  let meseSelezionato = new Date(new Date().getFullYear(), new Date().getMonth(), 1); 
   let categoriePersonalizzate = JSON.parse(localStorage.getItem("contiFaciliCategorie") || "[]");
-  function esportaBackup() {
-    const backup = {
-      movimenti: movimenti,
-      categoriePersonalizzate: categoriePersonalizzate,
-      contiPersonalizzati: contiPersonalizzati
-        };
-    const blob = new Blob([JSON.stringify(backup, null, 2)], { type: "application/json" });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement("a");
-    a.href = url;
-    a.download = "conti-facili-backup.json";
-    a.click();
-    URL.revokeObjectURL(url);
-    }
-  function importaBackup(file) {
-    const reader = new FileReader();
-    reader.onload = () => {
-      try {
-        const backup = JSON.parse(reader.result);
-        if (!backup || !Array.isArray(backup.movimenti)) throw new Error("Backup non valido");
-        movimenti = backup.movimenti;
-        categoriePersonalizzate = Array.isArray(backup.categoriePersonalizzate) ? backup.categoriePersonalizzate : [];
-        if (Array.isArray(backup.contiPersonalizzati)) {
-          contiPersonalizzati=backup.contiPersonalizzati.filter(c=>c && typeof c.id==="string" && typeof c.nome==="string");
-          salvaConti();
-        } else if (movimenti.some(m=>m.contoId && m.contoId!=="contanti")) {
-          // Old backups may not contain account definitions; preserve existing account names.
-        } else { contiPersonalizzati=[]; salvaConti(); }
-        localStorage.setItem("contiFaciliMovimenti", JSON.stringify(movimenti));
-        salvaCategoriePersonalizzate();
-        aggiornaSelettoreConti();
-        aggiorna();
-        
-        alert("Backup ripristinato correttamente");
-        } catch (e) {
-        alert("Errore ripristino: " + e.message);
-        }
+  async function chiaveBackup(password, salt) {
+    const encoder=new TextEncoder();
+    const base=await crypto.subtle.importKey("raw",encoder.encode(password),"PBKDF2",false,["deriveKey"]);
+    return crypto.subtle.deriveKey({name:"PBKDF2",salt,iterations:310000,hash:"SHA-256"},base,{name:"AES-GCM",length:256},false,["encrypt","decrypt"]);
+  }
+  function bytesBase64(bytes) {
+    let s="";for(const b of bytes)s+=String.fromCharCode(b);return btoa(s);
+  }
+  function base64Bytes(value) {
+    const s=atob(value);return Uint8Array.from(s,c=>c.charCodeAt(0));
+  }
+  function scaricaBackup(backup,filename) {
+    const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+    const url=URL.createObjectURL(blob);
+    const a=document.createElement("a");a.href=url;a.download=filename;a.click();
+    setTimeout(()=>URL.revokeObjectURL(url),1000);
+  }
+  async function esportaBackup() {
+    if(!window.crypto || !crypto.subtle){alert("Cifratura non disponibile su questo dispositivo.");return;}
+    const password=prompt("Scegli una password per il backup (almeno 12 caratteri). Conservala: senza di essa non potrai recuperare i dati.");
+    if(password===null)return;
+    if(password.length<12){alert("La password deve avere almeno 12 caratteri.");return;}
+    const conferma=prompt("Ripeti la password del backup:");
+    if(conferma===null)return;
+    if(password!==conferma){alert("Le password non coincidono.");return;}
+    try {
+      const payload={movimenti,categoriePersonalizzate};
+      if(typeof contiPersonalizzati!=="undefined")payload.contiPersonalizzati=contiPersonalizzati;
+      const salt=crypto.getRandomValues(new Uint8Array(16));
+      const iv=crypto.getRandomValues(new Uint8Array(12));
+      const key=await chiaveBackup(password,salt);
+      const data=await crypto.subtle.encrypt({name:"AES-GCM",iv},key,new TextEncoder().encode(JSON.stringify(payload)));
+      scaricaBackup({formato:"conti-facili-cifrato",versione:1,kdf:"PBKDF2-SHA256",iterazioni:310000,cifratura:"AES-256-GCM",salt:bytesBase64(salt),iv:bytesBase64(iv),dati:bytesBase64(new Uint8Array(data))},"conti-facili-backup-protetto.json");
+      alert("Backup protetto salvato. Conserva la password in un luogo sicuro.");
+    }catch(e){alert("Impossibile creare il backup protetto.");}
+  }
+  async function importaBackup(file) {
+    try {
+      const backupFile=JSON.parse(await file.text());
+      let backup=backupFile;
+      if(backupFile && backupFile.formato==="conti-facili-cifrato") {
+        if(backupFile.versione!==1 || backupFile.kdf!=="PBKDF2-SHA256" || backupFile.iterazioni!==310000 || backupFile.cifratura!=="AES-256-GCM")throw Error("Formato cifrato non supportato");
+        const password=prompt("Inserisci la password del backup protetto:");
+        if(password===null)return;
+        const key=await chiaveBackup(password,base64Bytes(backupFile.salt));
+        let decoded;
+        try{decoded=await crypto.subtle.decrypt({name:"AES-GCM",iv:base64Bytes(backupFile.iv)},key,base64Bytes(backupFile.dati));}
+        catch(e){throw Error("Password errata oppure file danneggiato");}
+        backup=JSON.parse(new TextDecoder().decode(decoded));
+      } else if(!confirm("Questo backup non è cifrato. Vuoi ripristinarlo?"))return;
+      if(!backup || !Array.isArray(backup.movimenti))throw Error("Backup non valido");
+      if(!confirm("Il ripristino sostituirà i movimenti presenti su questo dispositivo. Continuare?"))return;
+      // Validate the whole payload before writing any data.
+      if(!backup.movimenti.every(m=>m && typeof m==="object" && ["entrata","uscita"].includes(m.tipo) && Number.isFinite(m.importo) && m.importo>=0 && typeof m.data==="string"))throw Error("Movimenti non validi");
+      const nuoveCategorie=(Array.isArray(backup.categoriePersonalizzate)?backup.categoriePersonalizzate:[]).filter(c=>typeof c==="string");
+      const nuoviConti=Array.isArray(backup.contiPersonalizzati)?backup.contiPersonalizzati.filter(c=>c && typeof c.id==="string" && typeof c.nome==="string"):null;
+      // Keep the previous data if any storage write fails.
+      const valoriNuovi={
+        contiFaciliMovimenti:JSON.stringify(backup.movimenti),
+        contiFaciliCategorie:JSON.stringify(nuoveCategorie),
+        contiFaciliConti:JSON.stringify(nuoviConti||[]),
+        contiFaciliUltimoConto:"contanti"
       };
-    reader.readAsText(file);
-    }
+      const valoriPrecedenti=Object.fromEntries(Object.keys(valoriNuovi).map(k=>[k,localStorage.getItem(k)]));
+      try {
+        for(const [k,v] of Object.entries(valoriNuovi))localStorage.setItem(k,v);
+      }catch(errore){
+        for(const [k,v] of Object.entries(valoriPrecedenti)){
+          try{if(v===null)localStorage.removeItem(k);else localStorage.setItem(k,v);}catch(_){}
+        }
+        throw Error("Spazio insufficiente o memoria non disponibile: dati precedenti conservati, se il dispositivo lo consente");
+      }
+      alert("Backup ripristinato correttamente. La pagina verrà ricaricata.");
+      location.reload();
+    }catch(e){alert("Errore ripristino: "+e.message);}
+  }
 
 const categorieEntrata = [
   "Incasso",
@@ -523,6 +576,7 @@ function apriForm(tipo) {
   tipoCorrente = tipo;
   const form = document.getElementById("formMovimento");
   const select = document.getElementById("categoria");
+  document.getElementById("contoMovimento").value = contoPreferito();
   aggiornaSelettoreConti();
 
   document.getElementById("titoloForm").textContent =
@@ -531,7 +585,8 @@ function apriForm(tipo) {
   const categorie = tipo === "entrata" ? categorieEntrata : categorieUscita;
   
 
-  select.innerHTML = [...categorie, ...categoriePersonalizzate].map(c => `<option>${c}</option>`).join("");
+  select.replaceChildren();
+  [...categorie,...categoriePersonalizzate].forEach(c=>{const o=document.createElement("option");o.value=c;o.textContent=c;select.appendChild(o);});
   select.insertAdjacentHTML("afterbegin", '<option value="" selected disabled>Scegli categoria</option>');
 select.onchange = () => {
   document.getElementById("nuovaCategoria").style.display = select.value === "Altro" ? "block" : "none";
@@ -686,9 +741,9 @@ function aggiorna() {document.getElementById("navigazioneMese").hidden =
       return `
         <div class="movimento">
           <div class="info">
-            <div class="categoria">${m.categoria}</div>
-            ${m.nota ? `<div class="nota">${m.nota}</div>` : ""}
-            <div class="data">${data} · ${nomeConto(m.contoId||"contanti")}</div>
+            <div class="categoria">${testoSicuro(m.categoria)}</div>
+            ${m.nota ? `<div class="nota">${testoSicuro(m.nota)}</div>` : ""}
+            <div class="data">${testoSicuro(data)} · ${testoSicuro(nomeConto(m.contoId||"contanti"))}</div>
           </div>
 
           <div>
