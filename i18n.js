@@ -67,6 +67,7 @@ if(!currencyCodes.includes(ledgerCurrency)){
  const hasOldMovements=typeof movimenti!=="undefined"&&movimenti.length>0;
  ledgerCurrency=hasOldMovements?"EUR":suggestedCurrency();
 }
+try{localStorage.setItem("contiFaciliValuta",ledgerCurrency);}catch(e){}
 const currencyPicker=document.createElement("div");
 currencyPicker.style.cssText="display:flex;justify-content:center;align-items:center;gap:8px;margin:2px 0 12px";
 const currencyLabel=document.createElement("label");
